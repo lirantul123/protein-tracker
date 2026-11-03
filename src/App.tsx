@@ -1,122 +1,112 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useState } from 'react';
+import { useAppStore } from './store';
+import { Dashboard } from './components/Dashboard';
+import { FoodLog } from './components/FoodLog';
+import { AddFoodModal } from './components/AddFoodModal';
+import { NutritionCalculator } from './components/NutritionCalculator';
+import { Suggestions } from './components/Suggestions';
+import { History } from './components/History';
+import { QuickAdd } from './components/QuickAdd';
+import type { MealCategory } from './types';
 
-function App() {
-  const [count, setCount] = useState(0)
+type Tab = 'dashboard' | 'log' | 'suggest' | 'calc' | 'quick' | 'history';
+
+const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: 'dashboard', label: 'בית', icon: '🏠' },
+  { id: 'log', label: 'יומן', icon: '📋' },
+  { id: 'suggest', label: 'המלצות', icon: '💡' },
+  { id: 'calc', label: 'חישוב', icon: '🏷️' },
+  { id: 'quick', label: 'מהיר', icon: '⚡' },
+  { id: 'history', label: 'היסטוריה', icon: '📊' },
+];
+
+export default function App() {
+  const store = useAppStore();
+  const [tab, setTab] = useState<Tab>('dashboard');
+  const [showModal, setShowModal] = useState(false);
+
+  const todayLog = store.getTodayLog();
+  const consumed = todayLog.entries.reduce((s, e) => s + e.proteinTotal, 0);
+  const remaining = Math.max(0, store.state.dailyTarget - consumed);
+
+  const handleAdd = (entry: { name: string; proteinPer100g: number; amountG: number; category: MealCategory }) => {
+    store.addEntry(entry);
+    setShowModal(false);
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
+    <div className="min-h-screen bg-gray-950" dir="rtl">
+      {/* Header */}
+      <header className="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
         <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
+          <h1 className="text-lg font-bold text-white leading-tight">מעקב חלבון 💪</h1>
+          <p className="text-xs text-gray-500">
+            {consumed}g / {store.state.dailyTarget}g היום
           </p>
         </div>
         <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+          onClick={() => setShowModal(true)}
+          className="bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm px-4 py-2 rounded-xl transition-colors"
         >
-          Count is {count}
+          + הוסף
         </button>
-      </section>
+      </header>
 
-      <div className="ticks"></div>
+      {/* Content */}
+      <main className="max-w-lg mx-auto px-4 py-4 pb-24">
+        {tab === 'dashboard' && (
+          <Dashboard
+            log={todayLog}
+            target={store.state.dailyTarget}
+            streak={store.state.streak}
+            onAddFood={() => setShowModal(true)}
+            onCopyYesterday={store.copyYesterdayMeals}
+            onTargetEdit={store.setDailyTarget}
+          />
+        )}
+        {tab === 'log' && (
+          <FoodLog entries={todayLog.entries} onRemove={store.removeEntry} />
+        )}
+        {tab === 'suggest' && (
+          <Suggestions remaining={remaining} onAdd={handleAdd} />
+        )}
+        {tab === 'calc' && (
+          <NutritionCalculator onAddToLog={handleAdd} />
+        )}
+        {tab === 'quick' && (
+          <QuickAdd
+            customFoods={store.state.customFoods}
+            onAdd={handleAdd}
+            onAddCustom={store.addCustomFood}
+            onRemoveCustom={store.removeCustomFood}
+            onToggleFavorite={store.toggleFavorite}
+          />
+        )}
+        {tab === 'history' && (
+          <History logs={store.state.logs} target={store.state.dailyTarget} />
+        )}
+      </main>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      {/* Bottom Nav */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 z-30">
+        <div className="max-w-lg mx-auto flex">
+          {TABS.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex-1 flex flex-col items-center py-2 pt-3 transition-colors ${
+                tab === t.id ? 'text-brand-400' : 'text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              <span className="text-lg leading-none">{t.icon}</span>
+              <span className="text-[10px] mt-1 font-medium">{t.label}</span>
+            </button>
+          ))}
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      </nav>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {/* Add Food Modal */}
+      {showModal && <AddFoodModal onAdd={handleAdd} onClose={() => setShowModal(false)} />}
+    </div>
+  );
 }
-
-export default App
